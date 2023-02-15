@@ -292,6 +292,8 @@ pub enum Compression {
     LZ4,
     ZSTD,
     LZ4_RAW,
+    // q-compression
+    QCOM,
 }
 
 // ----------------------------------------------------------------------
@@ -836,6 +838,7 @@ impl TryFrom<parquet::CompressionCodec> for Compression {
             parquet::CompressionCodec::LZ4 => Compression::LZ4,
             parquet::CompressionCodec::ZSTD => Compression::ZSTD,
             parquet::CompressionCodec::LZ4_RAW => Compression::LZ4_RAW,
+            parquet::CompressionCodec::QCOM => Compression::QCOM,
             _ => {
                 return Err(general_err!(
                     "unexpected parquet compression codec: {}",
@@ -857,6 +860,7 @@ impl From<Compression> for parquet::CompressionCodec {
             Compression::LZ4 => parquet::CompressionCodec::LZ4,
             Compression::ZSTD => parquet::CompressionCodec::ZSTD,
             Compression::LZ4_RAW => parquet::CompressionCodec::LZ4_RAW,
+            Compression::QCOM => parquet::CompressionCodec::QCOM,
         }
     }
 }

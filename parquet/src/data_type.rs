@@ -1239,9 +1239,19 @@ macro_rules! ensure_phys_ty {
  * 
  * Currently Codec can accept all integers, floats, doubles.
  */
-pub trait DataTypeConstraint: Copy + Debug + Display + Default + PartialEq + 'static {
+pub trait DataTypeConstraint: 
+    PartialEq
+    + std::fmt::Debug
+    + std::fmt::Display
+    + Default
+    + Copy
+    + PartialOrd
+    + Send
+    + 'static 
+{
     fn typename() -> &'static str { "unknown" }
 }
+
 impl DataTypeConstraint for u8 {
     fn typename() -> &'static str { "u8" }
 }

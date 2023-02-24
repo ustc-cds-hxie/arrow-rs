@@ -29,6 +29,9 @@ use crate::column::writer::{ColumnWriter, ColumnWriterImpl};
 use crate::errors::{ParquetError, Result};
 use crate::util::{bit_util::FromBytes, memory::ByteBufferPtr};
 
+// downcast datatypeconstraint to concrete types
+use std::any::Any;
+
 /// Rust representation for logical type INT96, value is backed by an array of `u32`.
 /// The type only takes 12 bytes, without extra padding.
 #[derive(Clone, Copy, Debug, PartialOrd, Default, PartialEq, Eq)]
@@ -1240,41 +1243,58 @@ macro_rules! ensure_phys_ty {
  * Currently Codec can accept all integers, floats, doubles.
  */
 pub trait DataTypeConstraint: 
-    PartialEq
-    + std::fmt::Debug
+    std::fmt::Debug
     + std::fmt::Display
-    + Default
-    + Copy
-    + PartialOrd
-    + Send
-    + 'static 
+    // + Default
+    // + Copy
+    // + PartialOrd
+    // + PartialEq
+    // + Send
+    // + 'static 
 {
-    fn typename() -> &'static str { "unknown" }
+    fn typename(&self) -> &'static str { "unknown" }
+    fn as_any(&self) -> &dyn Any;
 }
 
 impl DataTypeConstraint for u8 {
-    fn typename() -> &'static str { "u8" }
+    fn typename(&self) -> &'static str { "u8" }
+    fn as_any(&self) -> &dyn Any { self }
+}
+impl DataTypeConstraint for u16 {
+    fn typename(&self) -> &'static str { "u16" }
+    fn as_any(&self) -> &dyn Any { self }
 }
 impl DataTypeConstraint for u32 {
-    fn typename() -> &'static str { "u32" }
+    fn typename(&self) -> &'static str { "u32" }
+    fn as_any(&self) -> &dyn Any { self }
 }
 impl DataTypeConstraint for u64 {
-    fn typename() -> &'static str { "u64" }
+    fn typename(&self) -> &'static str { "u64" }
+    fn as_any(&self) -> &dyn Any { self }
 }
 impl DataTypeConstraint for i8 {
-    fn typename() -> &'static str { "i8" }
+    fn typename(&self) -> &'static str { "i8" }
+    fn as_any(&self) -> &dyn Any { self }
+}
+impl DataTypeConstraint for i16 {
+    fn typename(&self) -> &'static str { "i16" }
+    fn as_any(&self) -> &dyn Any { self }
 }
 impl DataTypeConstraint for i32 {
-    fn typename() -> &'static str { "i32" }
+    fn typename(&self) -> &'static str { "i32" }
+    fn as_any(&self) -> &dyn Any { self }
 }
 impl DataTypeConstraint for i64 {
-    fn typename() -> &'static str { "i64" }
+    fn typename(&self) -> &'static str { "i64" }
+    fn as_any(&self) -> &dyn Any { self }
 }
 impl DataTypeConstraint for f32 {
-    fn typename() -> &'static str { "f32" }
+    fn typename(&self) -> &'static str { "f32" }
+    fn as_any(&self) -> &dyn Any { self }
 }
 impl DataTypeConstraint for f64 {
-    fn typename() -> &'static str { "f64" }
+    fn typename(&self) -> &'static str { "f64" }
+    fn as_any(&self) -> &dyn Any { self }
 }
 
 #[cfg(test)]

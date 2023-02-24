@@ -1222,7 +1222,10 @@ mod tests {
     fn compress_helper(compressor: Option<&mut Box<dyn Codec>>, data: &[u8]) -> Vec<u8> {
         let mut output_buf = vec![];
         if let Some(cmpr) = compressor {
-            cmpr.compress(data, &mut output_buf).unwrap();
+            cmpr.compress(
+                &0u8 as &dyn DataTypeConstraint,
+                &data.iter().map(|x| x as &dyn DataTypeConstraint).collect(), 
+                &mut output_buf).unwrap();
         } else {
             output_buf.extend_from_slice(data);
         }

@@ -27,6 +27,7 @@ use crate::basic::{Encoding, Type};
 use crate::bloom_filter::Sbbf;
 use crate::column::page::{Page, PageMetadata, PageReader};
 use crate::compression::{create_codec, Codec};
+use crate::data_type::DataTypeConstraint;
 use crate::errors::{ParquetError, Result};
 use crate::file::page_index::index_reader;
 use crate::file::{
@@ -471,11 +472,12 @@ pub(crate) fn decode_page(
     let buffer = match decompressor {
         Some(decompressor) if can_decompress => {
             let uncompressed_size = page_header.uncompressed_page_size as usize;
-            let mut decompressed = Vec::with_capacity(uncompressed_size);
+            let mut decompressed: Vec<&dyn DataTypeConstraint> = Vec::with_capacity(uncompressed_size);
             let compressed = &buffer.as_ref()[offset..];
-            decompressed.extend_from_slice(&buffer.as_ref()[..offset]);
+            decompressed.extend_from_slice(&buffer.as_ref()[..offset].iter().map(|x| x as &dyn DataTypeConstraint).collect::<Vec<_>>());
             decompressor.decompress(
                 compressed,
+                &0u8 as &dyn DataTypeConstraint,
                 &mut decompressed,
                 Some(uncompressed_size - offset),
             )?;
@@ -488,7 +490,7 @@ pub(crate) fn decode_page(
                 ));
             }
 
-            ByteBufferPtr::new(decompressed)
+            ByteBufferPtr::new(decompressed.iter().map(|&x| *x.as_any().downcast_ref::<u8>().expect("decode_page: u8 not found")).collect::<Vec<_>>())
         }
         _ => buffer,
     };

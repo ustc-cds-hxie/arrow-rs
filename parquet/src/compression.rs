@@ -49,10 +49,7 @@ assert_eq!(output, data);
 )]
 use crate::basic::Compression as CodecType;
 use crate::errors::{ParquetError, Result};
-use crate::data_type::DataTypeConstraint as DataTypeConstraint;
-
-// convert byte array
-use byteorder::{ByteOrder, BigEndian};
+use crate::record::Field;
 
 /// Parquet compression codec interface.
 pub trait Codec: Send {
@@ -61,11 +58,7 @@ pub trait Codec: Send {
     ///
     /// Note that you'll need to call `clear()` before reusing the same `output_buf`
     /// across different `compress` calls.
-    fn compress<T: DataTypeConstraint>(
-        &mut self, 
-        input_buf: &[T], 
-        output_buf: &mut Vec<u8>,
-    ) -> Result<()>;
+    fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()>;
 
     /// Decompresses data stored in slice `input_buf` and appends output to `output_buf`.
     ///
@@ -74,129 +67,49 @@ pub trait Codec: Send {
     /// greater or equal to the real uncompress_size.
     ///
     /// Returns the total number of bytes written.
-    fn decompress<T: DataTypeConstraint>(
+    fn decompress(
         &mut self,
         input_buf: &[u8],
-        output_buf: &mut Vec<T>,
+        output_buf: &mut Vec<u8>,
         uncompress_size: Option<usize>,
     ) -> Result<usize>;
 
-    // determine if the input is allowed for compress, or the output is allowed for decompress
-    // check if the input/output data type is allowed
-    fn allowed<T: DataTypeConstraint>(&mut self, iodata: &[T]) -> bool {
-        match T::typename() {
-            "u8" | "u16" | "u32" | "u64" => true,
-            "i8" | "i16" | "i32" | "i64" => true,
-            "f32" | "f64" => true,
+    // generic function would be best here, but trait object does not support generic function
+    // need to figure out better way to do this
+    fn compress_u16(&mut self, _input_buf: &Vec<u16>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_u16 is not allowed".into())) }
+    fn compress_u32(&mut self, _input_buf: &Vec<u32>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_u32 is not allowed".into())) }
+    fn compress_u64(&mut self, _input_buf: &Vec<u64>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_u64 is not allowed".into())) }
+    fn compress_i16(&mut self, _input_buf: &Vec<i16>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_i16 is not allowed".into())) }
+    fn compress_i32(&mut self, _input_buf: &Vec<i32>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_i32 is not allowed".into())) }
+    fn compress_i64(&mut self, _input_buf: &Vec<i64>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_i64 is not allowed".into())) }
+    fn compress_f32(&mut self, _input_buf: &Vec<f32>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_f32 is not allowed".into())) }
+    fn compress_f64(&mut self, _input_buf: &Vec<f64>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_f64 is not allowed".into())) }
+
+    // generic function would be best here, but trait object does not support generic function
+    // need to figure out better way to do this
+    fn decompress_u16(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<u16>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_u16 is not allowed".into())) }
+    fn decompress_u32(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<u32>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_u32 is not allowed".into())) }
+    fn decompress_u64(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<u64>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_u64 is not allowed".into()))}
+    fn decompress_i16(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<i16>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_i16 is not allowed".into())) }
+    fn decompress_i32(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<i32>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_i32 is not allowed".into())) }
+    fn decompress_i64(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<i64>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_i64 is not allowed".into())) }
+    fn decompress_f32(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<f32>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_f32 is not allowed".into())) }
+    fn decompress_f64(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<f64>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_f64 is not allowed".into())) }
+
+    // determine if 
+    // (1) the input is allowed for compress, or 
+    // (2) the output is allowed for decompress
+    fn allow_input_to_compress(&mut self, sample: Field) -> bool {
+        match sample {
+            Field::UByte(_) => true,
             _ => false,
         }
     }
-
-    // convert input [T] -> [u8]
-    // convert output [u8] -> [T]
-    fn convert_data_type<T: DataTypeConstraint, U: DataTypeConstraint>(&mut self, input_buf: &[T], output_buf: &mut Vec<U>) -> Result<usize> {
-        
-        if input_buf.len() == 0 { 
-            return Ok(0); 
+    fn allow_output_to_decompress(&mut self, sample: Field) -> bool {
+        match sample {
+            Field::UByte(_) => true,
+            _ => false,
         }
-        // [u8] -> <T>
-        if T::typename() == "u8" {
-            match U::typename() {
-                "u8"  => { 
-                    output_buf.append(&mut input_buf);
-                },
-                "u16" => { 
-                    output_buf.resize(input_buf.len() / std::mem::size_of::<u16>(), 0u16);
-                    BigEndian::read_u16_into(input_buf, &mut output_buf); 
-                },
-                "u32" => {
-                    output_buf.resize(input_buf.len() / std::mem::size_of::<u32>(), 0u32);
-                    BigEndian::read_u32_into(input_buf, &mut output_buf); 
-                },
-                "u64" => {
-                    output_buf.resize(input_buf.len() / std::mem::size_of::<u64>(), 0u64);
-                    BigEndian::read_u64_into(input_buf, &mut output_buf); 
-                },
-                "i8"  => { 
-                    output_buf.append(&mut input_buf.iter().map(|&x| x as u8).collect::<Vec<_>>());
-                },
-                "i16" => {
-                    output_buf.resize(input_buf.len() / std::mem::size_of::<i16>(), 0i16);
-                    BigEndian::read_i16_into(input_buf, &mut output_buf); 
-                },
-                "i32" => {
-                    output_buf.resize(input_buf.len() / std::mem::size_of::<i32>(), 0i32);
-                    BigEndian::read_u32_into(input_buf, &mut output_buf); 
-                },
-                "i64" => {
-                    output_buf.resize(input_buf.len() / std::mem::size_of::<i64>(), 0i64);
-                    BigEndian::read_i64_into(input_buf, &mut output_buf); 
-                },
-                "f32" => {
-                    output_buf.resize(input_buf.len() / std::mem::size_of::<f32>(), 0f32);
-                    BigEndian::read_f32_into(input_buf, &mut output_buf); 
-                },
-                "f64" => {
-                    output_buf.resize(input_buf.len() / std::mem::size_of::<f64>(), 0f64);
-                    BigEndian::read_f64_into(input_buf, &mut output_buf); 
-                },
-                _ => { 
-                    panic!("Unsupported data type: {:?}", input_buf[0].typename());
-                },
-            }
-            return Ok(input_buf.len())
-        }
-
-        // <T> -> [u8]
-        if U::typename() == "u8" {
-            let mut new_input_buf = Vec::new();
-            match T::typename() {
-                "u8"  => { 
-                    new_input_buf.append(&mut input_buf);
-                },
-                "u16" => { 
-                    new_input_buf.resize(input_buf.len() * std::mem::size_of::<u16>(), 0u8);
-                    BigEndian::write_u16_into(input_buf, &mut new_input_buf); 
-                },
-                "u32" => {
-                    new_input_buf.resize(input_buf.len() * std::mem::size_of::<u32>(), 0u8);
-                    BigEndian::write_u32_into(input_buf, &mut new_input_buf); 
-                },
-                "u64" => {
-                    new_input_buf.resize(input_buf.len() * std::mem::size_of::<u64>(), 0u8);
-                    BigEndian::write_u64_into(input_buf, &mut new_input_buf); 
-                },
-                "i8"  => { 
-                    new_input_buf.append(&mut input_buf.iter().map(|&x| x as u8).collect::<Vec<_>>());
-                },
-                "i16" => {
-                    new_input_buf.resize(input_buf.len() * std::mem::size_of::<i16>(), 0u8);
-                    BigEndian::write_i16_into(input_buf, &mut new_input_buf); 
-                },
-                "i32" => {
-                    new_input_buf.resize(input_buf.len() * std::mem::size_of::<i32>(), 0u8);
-                    BigEndian::write_i32_into(input_buf, &mut new_input_buf); 
-                },
-                "i64" => {
-                    new_input_buf.resize(input_buf.len() * std::mem::size_of::<i64>(), 0u8);
-                    BigEndian::write_i64_into(input_buf, &mut new_input_buf); 
-                },
-                "f32" => {
-                    new_input_buf.resize(input_buf.len() * std::mem::size_of::<f32>(), 0u8);
-                    BigEndian::write_f32_into(input_buf, &mut new_input_buf); 
-                },
-                "f64" => {
-                    new_input_buf.resize(input_buf.len() * std::mem::size_of::<f64>(), 0u8);
-                    BigEndian::write_f64_into(input_buf, &mut new_input_buf); 
-                },
-                _ => { 
-                    panic!("Unsupported data type: {:?}", input_buf[0].typename());
-                },
-            }
-            output_buf.append(&mut new_input_buf);
-            return Ok(input_buf.len())
-        }
-           
     }
 }
 
@@ -283,7 +196,6 @@ mod snappy_codec {
 
     use crate::compression::Codec;
     use crate::errors::Result;
-    use crate::data_type::DataTypeConstraint;
 
     /// Codec for Snappy compression format.
     pub struct SnappyCodec {
@@ -302,42 +214,24 @@ mod snappy_codec {
     }
 
     impl Codec for SnappyCodec {
-        fn decompress<T: DataTypeConstraint>(
+        fn decompress(
             &mut self,
             input_buf: &[u8],
-            external_output_buf: &mut Vec<T>,
+            output_buf: &mut Vec<u8>,
             uncompress_size: Option<usize>,
         ) -> Result<usize> {
-
-            // internal output buf as [u8]
-            let mut output_buf : Vec<u8> = Vec::new();
-
             let len = match uncompress_size {
                 Some(size) => size,
                 None => decompress_len(input_buf)?,
             };
             let offset = output_buf.len();
             output_buf.resize(offset + len, 0);
-            let retsize = self.decoder
+            self.decoder
                 .decompress(input_buf, &mut output_buf[offset..])
-                .map_err(|e| e.into());
-            
-            // convert input to other data types
-            self.convert_data_type(&mut output_buf, external_output_buf);
-
-            retsize
+                .map_err(|e| e.into())
         }
 
-        fn compress<T: DataTypeConstraint>(
-            &mut self, 
-            external_input_buf: &[T], 
-            output_buf: &mut Vec<u8>,
-        ) -> Result<()> {
-
-            // internal input buf as [u8]
-            let mut input_buf: Vec<u8>= Vec::new();
-            self.convert_data_type(external_input_buf, &mut input_buf);
-
+        fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()> {
             let output_buf_len = output_buf.len();
             let required_len = max_compress_len(input_buf.len());
             output_buf.resize(output_buf_len + required_len, 0);
@@ -347,8 +241,6 @@ mod snappy_codec {
             output_buf.truncate(output_buf_len + n);
             Ok(())
         }
-
-
     }
 }
 #[cfg(any(feature = "snap", test))]
@@ -364,8 +256,6 @@ mod gzip_codec {
     use crate::compression::Codec;
     use crate::errors::Result;
 
-    use crate::data_type::DataTypeConstraint;
-
     /// Codec for GZIP compression algorithm.
     pub struct GZipCodec {}
 
@@ -377,35 +267,17 @@ mod gzip_codec {
     }
 
     impl Codec for GZipCodec {
-        fn decompress<T: DataTypeConstraint>(
+        fn decompress(
             &mut self,
             input_buf: &[u8],
-            external_output_buf: &mut Vec<T>,
+            output_buf: &mut Vec<u8>,
             _uncompress_size: Option<usize>,
         ) -> Result<usize> {
-
-            // internal output buf as [u8]
-            let mut output_buf : Vec<u8> = Vec::new();
-
             let mut decoder = read::GzDecoder::new(input_buf);
-            let retsize = decoder.read_to_end(output_buf).map_err(|e| e.into());
-
-            // convert input to other data types
-            self.convert_data_type(&mut output_buf, external_output_buf);
-
-            retsize
+            decoder.read_to_end(output_buf).map_err(|e| e.into())
         }
 
-        fn compress<T: DataTypeConstraint>(
-            &mut self, 
-            external_input_buf: &[T], 
-            output_buf: &mut Vec<u8>,
-        ) -> Result<()> {
-
-            // internal input buf as [u8]
-            let mut input_buf: Vec<u8>= Vec::new();
-            self.convert_data_type(external_input_buf, &mut input_buf);
-
+        fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()> {
             let mut encoder = write::GzEncoder::new(output_buf, Compression::default());
             encoder.write_all(input_buf)?;
             encoder.try_finish().map_err(|e| e.into())
@@ -423,8 +295,6 @@ mod brotli_codec {
     use crate::compression::Codec;
     use crate::errors::Result;
 
-    use crate::data_type::DataTypeConstraint;
-
     const BROTLI_DEFAULT_BUFFER_SIZE: usize = 4096;
     const BROTLI_DEFAULT_COMPRESSION_QUALITY: u32 = 1; // supported levels 0-9
     const BROTLI_DEFAULT_LG_WINDOW_SIZE: u32 = 22; // recommended between 20-22
@@ -440,37 +310,19 @@ mod brotli_codec {
     }
 
     impl Codec for BrotliCodec {
-        fn decompress<T: DataTypeConstraint>(
+        fn decompress(
             &mut self,
             input_buf: &[u8],
-            external_output_buf: &mut Vec<T>,
+            output_buf: &mut Vec<u8>,
             uncompress_size: Option<usize>,
         ) -> Result<usize> {
-
-            // internal output buf as [u8]
-            let mut output_buf : Vec<u8> = Vec::new();
-
             let buffer_size = uncompress_size.unwrap_or(BROTLI_DEFAULT_BUFFER_SIZE);
-            let retsize = brotli::Decompressor::new(input_buf, buffer_size)
+            brotli::Decompressor::new(input_buf, buffer_size)
                 .read_to_end(output_buf)
-                .map_err(|e| e.into());
-
-            // convert input to other data types
-            self.convert_data_type(&mut output_buf, external_output_buf);
-
-            retsize
+                .map_err(|e| e.into())
         }
 
-        fn compress<T: DataTypeConstraint>(
-            &mut self, 
-            external_input_buf: &[T], 
-            output_buf: &mut Vec<u8>,
-        ) -> Result<()> {
-
-            // internal input buf as [u8]
-            let mut input_buf: Vec<u8>= Vec::new();
-            self.convert_data_type(external_input_buf, &mut input_buf);
-
+        fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()> {
             let mut encoder = brotli::CompressorWriter::new(
                 output_buf,
                 BROTLI_DEFAULT_BUFFER_SIZE,
@@ -492,8 +344,6 @@ mod lz4_codec {
     use crate::compression::Codec;
     use crate::errors::Result;
 
-    use crate::data_type::DataTypeConstraint;
-
     const LZ4_BUFFER_SIZE: usize = 4096;
 
     /// Codec for LZ4 compression algorithm.
@@ -507,16 +357,12 @@ mod lz4_codec {
     }
 
     impl Codec for LZ4Codec {
-        fn decompress<T: DataTypeConstraint>(
+        fn decompress(
             &mut self,
             input_buf: &[u8],
-            external_output_buf: &mut Vec<T>,
+            output_buf: &mut Vec<u8>,
             _uncompress_size: Option<usize>,
         ) -> Result<usize> {
-
-            // internal output buf as [u8]
-            let mut output_buf : Vec<u8> = Vec::new();
-
             let mut decoder = lz4::Decoder::new(input_buf)?;
             let mut buffer: [u8; LZ4_BUFFER_SIZE] = [0; LZ4_BUFFER_SIZE];
             let mut total_len = 0;
@@ -528,23 +374,10 @@ mod lz4_codec {
                 total_len += len;
                 output_buf.write_all(&buffer[0..len])?;
             }
-
-            // convert input to other data types
-            self.convert_data_type(&mut output_buf, external_output_buf);
-
             Ok(total_len)
         }
 
-        fn compress<T: DataTypeConstraint>(
-            &mut self, 
-            external_input_buf: &[T], 
-            output_buf: &mut Vec<u8>,
-        ) -> Result<()> {
-
-            // internal input buf as [u8]
-            let mut input_buf: Vec<u8>= Vec::new();
-            self.convert_data_type(external_input_buf, &mut input_buf);
-
+        fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()> {
             let mut encoder = lz4::EncoderBuilder::new().build(output_buf)?;
             let mut from = 0;
             loop {
@@ -569,8 +402,6 @@ mod zstd_codec {
     use crate::compression::Codec;
     use crate::errors::Result;
 
-    use crate::data_type::DataTypeConstraint;
-
     /// Codec for Zstandard compression algorithm.
     pub struct ZSTDCodec {}
 
@@ -585,38 +416,20 @@ mod zstd_codec {
     const ZSTD_COMPRESSION_LEVEL: i32 = 1;
 
     impl Codec for ZSTDCodec {
-        fn decompress<T: DataTypeConstraint>(
+        fn decompress(
             &mut self,
             input_buf: &[u8],
-            external_output_buf: &mut Vec<T>,
+            output_buf: &mut Vec<u8>,
             _uncompress_size: Option<usize>,
         ) -> Result<usize> {
-
-            // internal output buf as [u8]
-            let mut output_buf : Vec<u8> = Vec::new();
-
             let mut decoder = zstd::Decoder::new(input_buf)?;
-            let retsize = match io::copy(&mut decoder, output_buf) {
+            match io::copy(&mut decoder, output_buf) {
                 Ok(n) => Ok(n as usize),
                 Err(e) => Err(e.into()),
-            };
-
-            // convert input to other data types
-            self.convert_data_type(&mut output_buf, external_output_buf);
-
-            retsize
+            }
         }
 
-        fn compress<T: DataTypeConstraint>(
-            &mut self, 
-            external_input_buf: &[T], 
-            output_buf: &mut Vec<u8>,
-        ) -> Result<()> {
-
-            // internal input buf as [u8]
-            let mut input_buf: Vec<u8>= Vec::new();
-            self.convert_data_type(external_input_buf, &mut input_buf);
-
+        fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()> {
             let mut encoder = zstd::Encoder::new(output_buf, ZSTD_COMPRESSION_LEVEL)?;
             encoder.write_all(input_buf)?;
             match encoder.finish() {
@@ -635,8 +448,6 @@ mod lz4_raw_codec {
     use crate::errors::ParquetError;
     use crate::errors::Result;
 
-    use crate::data_type::DataTypeConstraint;
-
     /// Codec for LZ4 Raw compression algorithm.
     pub struct LZ4RawCodec {}
 
@@ -648,16 +459,12 @@ mod lz4_raw_codec {
     }
 
     impl Codec for LZ4RawCodec {
-        fn decompress<T: DataTypeConstraint>(
+        fn decompress(
             &mut self,
             input_buf: &[u8],
-            external_output_buf: &mut Vec<T>,
+            output_buf: &mut Vec<u8>,
             uncompress_size: Option<usize>,
         ) -> Result<usize> {
-
-            // internal output buf as [u8]
-            let mut output_buf : Vec<u8> = Vec::new();
-
             let offset = output_buf.len();
             let required_len = match uncompress_size {
                 Some(uncompress_size) => uncompress_size,
@@ -668,7 +475,7 @@ mod lz4_raw_codec {
                 }
             };
             output_buf.resize(offset + required_len, 0);
-            let retsize = match lz4::block::decompress_to_buffer(
+            match lz4::block::decompress_to_buffer(
                 input_buf,
                 Some(required_len.try_into().unwrap()),
                 &mut output_buf[offset..],
@@ -676,30 +483,16 @@ mod lz4_raw_codec {
                 Ok(n) => {
                     if n != required_len {
                         return Err(ParquetError::General(
-                            "LZ4RawCodec uncompress_size is not the expected one".into(),
+                            format!("LZ4RawCodec uncompress_size is not the expected one, n = {}, required_len = {}", n, required_len).into(),
                         ));
                     }
                     Ok(n)
                 }
                 Err(e) => Err(e.into()),
-            };
-
-            // convert input to other data types
-            self.convert_data_type(&mut output_buf, external_output_buf);
-
-            retsize
+            }
         }
 
-        fn compress<T: DataTypeConstraint>(
-            &mut self, 
-            external_input_buf: &[T], 
-            output_buf: &mut Vec<u8>,
-        ) -> Result<()> {
-
-            // internal input buf as [u8]
-            let mut input_buf: Vec<u8>= Vec::new();
-            self.convert_data_type(external_input_buf, &mut input_buf);
-
+        fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()> {
             let offset = output_buf.len();
             let required_len = lz4::block::compress_bound(input_buf.len())?;
             output_buf.resize(offset + required_len, 0);
@@ -728,8 +521,6 @@ mod lz4_hadoop_codec {
     use crate::compression::Codec;
     use crate::errors::{ParquetError, Result};
     use std::io;
-
-    use crate::data_type::DataTypeConstraint;
 
     /// Size of u32 type.
     const SIZE_U32: usize = std::mem::size_of::<u32>();
@@ -831,16 +622,12 @@ mod lz4_hadoop_codec {
     }
 
     impl Codec for LZ4HadoopCodec {
-        fn decompress<T: DataTypeConstraint>(
+        fn decompress(
             &mut self,
             input_buf: &[u8],
-            external_output_buf: &mut Vec<T>,
+            output_buf: &mut Vec<u8>,
             uncompress_size: Option<usize>,
         ) -> Result<usize> {
-
-            // internal output buf as [u8]
-            let mut output_buf : Vec<u8> = Vec::new();
-
             let output_len = output_buf.len();
             let required_len = match uncompress_size {
                 Some(n) => n,
@@ -851,7 +638,7 @@ mod lz4_hadoop_codec {
                 }
             };
             output_buf.resize(output_len + required_len, 0);
-            let retsize = match try_decompress_hadoop(input_buf, &mut output_buf[output_len..]) {
+            match try_decompress_hadoop(input_buf, &mut output_buf[output_len..]) {
                 Ok(n) => {
                     if n != required_len {
                         return Err(ParquetError::General(
@@ -884,24 +671,10 @@ mod lz4_hadoop_codec {
                         }
                     }
                 }
-            };
-
-            // convert input to other data types
-            self.convert_data_type(&mut output_buf, external_output_buf);
-
-            retsize
+            }
         }
 
-        fn compress<T: DataTypeConstraint>(
-            &mut self, 
-            external_input_buf: &[T], 
-            output_buf: &mut Vec<u8>,
-        ) -> Result<()> {
-
-            // internal input buf as [u8]
-            let mut input_buf: Vec<u8>= Vec::new();
-            self.convert_data_type(external_input_buf, &mut input_buf);
-
+        fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()> {
             // Allocate memory to store the LZ4_HADOOP prefix.
             let offset = output_buf.len();
             output_buf.resize(offset + PREFIX_LEN, 0);
@@ -928,11 +701,10 @@ pub use lz4_hadoop_codec::*;
 #[cfg(any(feature = "q_compress", test))]
 mod qcom_codec {
     use crate::compression::Codec;
-    use crate::errors::Result;
+    use crate::errors::{ParquetError, Result};
+    use crate::record::Field;
 
     use q_compress::{auto_compress, auto_decompress, DEFAULT_COMPRESSION_LEVEL};
-    
-    use crate::data_type::DataTypeConstraint;
 
     /// Codec for LZ4 Raw compression algorithm.
     pub struct QcomCodec {}
@@ -945,42 +717,113 @@ mod qcom_codec {
     }
 
     impl Codec for QcomCodec {
-        fn decompress<T: DataTypeConstraint>(
+        fn decompress(
             &mut self,
-            input_buf: &[u8],
-            output_buf: &mut Vec<T>,
-            uncompress_size: Option<usize>,
-        ) -> Result<usize> {
+            _input_buf: &[u8],
+            _output_buf: &mut Vec<u8>,
+            _uncompress_size: Option<usize>,
+        ) -> Result<usize> { 
+            Err(ParquetError::General(
+                "QcomCodec decompress does not generate Vec<u8> output".into(),
+            ))
+        }
 
-            let internal_output_buf = auto_decompress::<T>(input_buf).expect("failed to decompress");
-
-            output_buf.append(&mut internal_output_buf);
-            
+        fn decompress_u16(&mut self, input_buf: &[u8], output_buf: &mut Vec<u16>, _uncompress_size: Option<usize>,) -> Result<usize> {
+            output_buf.append( &mut auto_decompress::<u16>(input_buf).expect("failed to decompress") );
+            Ok(output_buf.len())
+        }
+        fn decompress_u32(&mut self, input_buf: &[u8], output_buf: &mut Vec<u32>, _uncompress_size: Option<usize>,) -> Result<usize> {
+            output_buf.append( &mut auto_decompress::<u32>(input_buf).expect("failed to decompress") );
+            Ok(output_buf.len())
+        }
+        fn decompress_u64(&mut self, input_buf: &[u8], output_buf: &mut Vec<u64>, _uncompress_size: Option<usize>,) -> Result<usize> {
+            output_buf.append( &mut auto_decompress::<u64>(input_buf).expect("failed to decompress") );
+            Ok(output_buf.len())
+        }
+        fn decompress_i16(&mut self, input_buf: &[u8], output_buf: &mut Vec<i16>, _uncompress_size: Option<usize>,) -> Result<usize> {
+            output_buf.append( &mut auto_decompress::<i16>(input_buf).expect("failed to decompress") );
+            Ok(output_buf.len())
+        }
+        fn decompress_i32(&mut self, input_buf: &[u8], output_buf: &mut Vec<i32>, _uncompress_size: Option<usize>,) -> Result<usize> {
+            output_buf.append( &mut auto_decompress::<i32>(input_buf).expect("failed to decompress") );
+            Ok(output_buf.len())
+        }
+        fn decompress_i64(&mut self, input_buf: &[u8], output_buf: &mut Vec<i64>, _uncompress_size: Option<usize>,) -> Result<usize> {
+            output_buf.append( &mut auto_decompress::<i64>(input_buf).expect("failed to decompress") );
+            Ok(output_buf.len())
+        }
+        fn decompress_f32(&mut self, input_buf: &[u8], output_buf: &mut Vec<f32>, _uncompress_size: Option<usize>,) -> Result<usize> {
+            output_buf.append( &mut auto_decompress::<f32>(input_buf).expect("failed to decompress") );
+            Ok(output_buf.len())
+        }
+        fn decompress_f64(&mut self, input_buf: &[u8], output_buf: &mut Vec<f64>, _uncompress_size: Option<usize>,) -> Result<usize> {
+            output_buf.append( &mut auto_decompress::<f64>(input_buf).expect("failed to decompress") );
             Ok(output_buf.len())
         }
 
-        fn compress<T: DataTypeConstraint>(
-            &mut self, 
-            external_input_buf: &[T], 
-            output_buf: &mut Vec<u8>,
-        ) -> Result<()> {
+        fn compress(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<u8>) -> Result<()> {
+            Err(ParquetError::General(
+                "QcomCodec compress does not use Vec<u8> as input".into(),
+            ))
+        }
 
-            output_buf = auto_compress::<T>(external_input_buf, DEFAULT_COMPRESSION_LEVEL).expect("failed to decompress");
+        fn compress_u16(&mut self, input_buf: &Vec<u16>, output_buf: &mut Vec<u8> ) -> Result<()> { 
+            output_buf.append(&mut auto_compress::<u16>(input_buf, DEFAULT_COMPRESSION_LEVEL));
+            Ok(())
+        }
+        fn compress_u32(&mut self, input_buf: &Vec<u32>, output_buf: &mut Vec<u8> ) -> Result<()> { 
+            output_buf.append(&mut auto_compress::<u32>(input_buf, DEFAULT_COMPRESSION_LEVEL));
+            Ok(())
+        }
+        fn compress_u64(&mut self, input_buf: &Vec<u64>, output_buf: &mut Vec<u8> ) -> Result<()> { 
+            output_buf.append(&mut auto_compress::<u64>(input_buf, DEFAULT_COMPRESSION_LEVEL));
+            Ok(())
+        }
+        fn compress_i16(&mut self, input_buf: &Vec<i16>, output_buf: &mut Vec<u8> ) -> Result<()> { 
+            output_buf.append(&mut auto_compress::<i16>(input_buf, DEFAULT_COMPRESSION_LEVEL));
+            Ok(())
+        }
+        fn compress_i32(&mut self, input_buf: &Vec<i32>, output_buf: &mut Vec<u8> ) -> Result<()> { 
+            output_buf.append(&mut auto_compress::<i32>(input_buf, DEFAULT_COMPRESSION_LEVEL));
+            Ok(())
+        }
+        fn compress_i64(&mut self, input_buf: &Vec<i64>, output_buf: &mut Vec<u8> ) -> Result<()> { 
+            output_buf.append(&mut auto_compress::<i64>(input_buf, DEFAULT_COMPRESSION_LEVEL));
+            Ok(())
+        }
+        fn compress_f32(&mut self, input_buf: &Vec<f32>, output_buf: &mut Vec<u8> ) -> Result<()> { 
+            output_buf.append(&mut auto_compress::<f32>(input_buf, DEFAULT_COMPRESSION_LEVEL));
+            Ok(())
+        }
+        fn compress_f64(&mut self, input_buf: &Vec<f64>, output_buf: &mut Vec<u8>) -> Result<()> { 
+            output_buf.append(&mut auto_compress::<f64>(input_buf, DEFAULT_COMPRESSION_LEVEL));
             Ok(())
         }
 
-        // determine if the input is allowed for compress, or the output is allowed for decompress
-        // check if the input/output data type is allowed
-        fn allowed<T: DataTypeConstraint>(&mut self, iodata: &[T]) -> bool {
-            if iodata.len() == 0 { false }
-            else {
-                match iodata[0].typename() {
-                    "u16" | "u32" | "u64" => true,
-                    "i16" | "i32" | "i64" => true,
-                    "f32" | "f64" => true,
-                    _ => false,
-                }
-            }   
+        // determine if 
+        // (1) the input is allowed for compress, or 
+        // (2) the output is allowed for decompress
+        fn allow_input_to_compress(&mut self, sample: Field) -> bool {
+            match sample {
+                Field::Short(_) | Field::UShort(_) => true,
+                Field::Int(_) | Field::UInt(_) => true,
+                Field::Long(_) | Field::ULong(_) => true,
+                Field::Float(_) | Field::Double(_) => true,
+                Field::TimestampMillis(_) | Field::TimestampMicros(_) => true,
+                Field::Date(_) => true,
+                _ => false,
+            }
+        }
+        fn allow_output_to_decompress(&mut self, sample: Field) -> bool {
+            match sample {
+                Field::Short(_) | Field::UShort(_) => true,
+                Field::Int(_) | Field::UInt(_) => true,
+                Field::Long(_) | Field::ULong(_) => true,
+                Field::Float(_) | Field::Double(_) => true,
+                Field::TimestampMillis(_) | Field::TimestampMicros(_) => true,
+                Field::Date(_) => true,
+                _ => false,
+            }
         }
     }
 }

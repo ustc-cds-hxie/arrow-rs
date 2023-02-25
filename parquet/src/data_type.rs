@@ -1233,50 +1233,6 @@ macro_rules! ensure_phys_ty {
     }
 }
 
-/**
- * data type generic for constraining the data types that 
- * Codec's compresss/decompress can accept 
- * 
- * Currently Codec can accept all integers, floats, doubles.
- */
-pub trait DataTypeConstraint: 
-    PartialEq
-    + std::fmt::Debug
-    + std::fmt::Display
-    + Default
-    + Copy
-    + PartialOrd
-    + Send
-    + 'static 
-{
-    fn typename() -> &'static str { "unknown" }
-}
-
-impl DataTypeConstraint for u8 {
-    fn typename() -> &'static str { "u8" }
-}
-impl DataTypeConstraint for u32 {
-    fn typename() -> &'static str { "u32" }
-}
-impl DataTypeConstraint for u64 {
-    fn typename() -> &'static str { "u64" }
-}
-impl DataTypeConstraint for i8 {
-    fn typename() -> &'static str { "i8" }
-}
-impl DataTypeConstraint for i32 {
-    fn typename() -> &'static str { "i32" }
-}
-impl DataTypeConstraint for i64 {
-    fn typename() -> &'static str { "i64" }
-}
-impl DataTypeConstraint for f32 {
-    fn typename() -> &'static str { "f32" }
-}
-impl DataTypeConstraint for f64 {
-    fn typename() -> &'static str { "f64" }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -148,11 +148,7 @@ name = "arrow_writer_layout"
 required-features = ["arrow"]
 
 [[test]]
-name = "compression_char"
-required-features = ["arrow", "experimental"]
-
-[[test]]
-name = "compression_f64"
+name = "compression"
 required-features = ["arrow", "experimental"]
 
 [[bin]]

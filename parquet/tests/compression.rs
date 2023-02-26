@@ -194,8 +194,8 @@ fn compare_two_vec_datatypeconstraint(
     let mut lhs_u8 = Vec::new();
     let mut rhs_u8 = Vec::new();
 
-    c.convert_to_u8(&*lhs[0], lhs, &mut lhs_u8);
-    c.convert_to_u8(&*rhs[0], rhs, &mut rhs_u8);
+    c.convert_to_u8(&*lhs[0], lhs, &mut lhs_u8).expect("convert_to_u8 failed");
+    c.convert_to_u8(&*rhs[0], rhs, &mut rhs_u8).expect("convert_to_u8 failed");
 
     lhs_u8 == rhs_u8
 }
@@ -257,7 +257,7 @@ fn test_roundtrip<T: DataTypeConstraint + 'static + Copy>(
 
     debug!("test_roundtrip: start compressing data: {:?}", data);
 
-    c1.compress(&*data[0], data, &mut compressed);
+    c1.compress(&*data[0], data, &mut compressed).expect("compress failed");
 
     debug!("test_roundtrip: compressed: {:?}", compressed);
 
@@ -290,7 +290,7 @@ fn test_roundtrip<T: DataTypeConstraint + 'static + Copy>(
     debug!("\n\n Now starting c2 decompress\n");
 
     // Decompress with c1
-    let decompressed_size = c1
+    let _decompressed_size = c1
         .decompress(compressed.as_slice(), &*data[0], &mut decompressed, uncompress_size)
         .expect("Error when decompressing");
 
@@ -316,8 +316,6 @@ fn test_codec_with_size<T: DataTypeConstraint + 'static + Copy>(c: CodecType) wh
     for size in sizes {
         let mut internal_data : Vec<T> = Vec::new();
         let mut data : Vec<Box<dyn DataTypeConstraint>> = Vec::new();
-        let mut decompressed: Vec<Box<dyn DataTypeConstraint>> = Vec::new();
-        let mut compressed: Vec<u8> = Vec::new();
 
         debug!("sizeof {} {:?}", std::any::type_name::<T>().to_string(), std::mem::size_of::<T>().to_string());
 
@@ -333,7 +331,7 @@ fn test_codec_with_size<T: DataTypeConstraint + 'static + Copy>(c: CodecType) wh
 
         match c {
             CodecType::SNAPPY | CodecType::GZIP | CodecType::BROTLI 
-            | CodecType::LZ4 | CodecType::ZSTD | CodecType::LZ4_HADOOP | CodecType::LZ4_RAW => {
+            | CodecType::LZ4 | CodecType::ZSTD | CodecType::LZ4_FRAME | CodecType::LZ4_RAW => {
                 test_roundtrip(c, &internal_data, &data, Some((internal_data.len() * std::mem::size_of::<T>()) as usize));
                 // test_roundtrip(c, &internal_data, &data, None);
             },
@@ -389,12 +387,12 @@ fn test_codec_zstd_u64() {
 }
 
 #[test]
-fn test_codec_lz4_hadoop_u8() {
-    test_codec_with_size::<u8>(CodecType::LZ4_HADOOP);
+fn test_codec_lz4_frame_u8() {
+    test_codec_with_size::<u8>(CodecType::LZ4_FRAME);
 }
 #[test]
-fn test_codec_lz4_hadoop_u64() {
-    test_codec_with_size::<u64>(CodecType::LZ4_HADOOP);
+fn test_codec_lz4_frame_u64() {
+    test_codec_with_size::<u64>(CodecType::LZ4_FRAME);
 }
 
 #[test]

@@ -34,6 +34,10 @@ use crate::column::{
     writer::{get_column_writer, ColumnWriter},
 };
 use crate::data_type::DataType;
+
+#[allow(unused_imports)]
+use crate::data_type::DataTypeConstraint;
+
 use crate::errors::{ParquetError, Result};
 use crate::file::{
     metadata::*, properties::WriterPropertiesPtr,
@@ -721,7 +725,7 @@ mod tests {
     use crate::basic::{Compression, Encoding, LogicalType, Repetition, Type};
     use crate::column::page::PageReader;
     use crate::compression::{create_codec, Codec, CodecOptionsBuilder};
-    use crate::data_type::{BoolType, Int32Type};
+    use crate::data_type::{BoolType, Int32Type, convert_vec_to_vecbox_for_datatypeconstraint};
     use crate::file::reader::ChunkReader;
     use crate::file::{
         properties::{ReaderProperties, WriterProperties, WriterVersion},
@@ -1222,9 +1226,11 @@ mod tests {
     fn compress_helper(compressor: Option<&mut Box<dyn Codec>>, data: &[u8]) -> Vec<u8> {
         let mut output_buf = vec![];
         if let Some(cmpr) = compressor {
+            let mut input_buf : Vec<Box<dyn DataTypeConstraint>> = Vec::new();
+            convert_vec_to_vecbox_for_datatypeconstraint(&data.to_vec(), &mut input_buf);
             cmpr.compress(
                 &0u8 as &dyn DataTypeConstraint,
-                &data.iter().map(|x| x as &dyn DataTypeConstraint).collect(), 
+                &input_buf, 
                 &mut output_buf).unwrap();
         } else {
             output_buf.extend_from_slice(data);

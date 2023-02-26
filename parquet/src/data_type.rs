@@ -32,6 +32,10 @@ use crate::util::{bit_util::FromBytes, memory::ByteBufferPtr};
 // downcast datatypeconstraint to concrete types
 use std::any::Any;
 
+// clone dyn trait objects
+#[allow(unused_imports)]
+use dyn_clone::DynClone;
+
 /// Rust representation for logical type INT96, value is backed by an array of `u32`.
 /// The type only takes 12 bytes, without extra padding.
 #[derive(Clone, Copy, Debug, PartialOrd, Default, PartialEq, Eq)]
@@ -1245,6 +1249,8 @@ macro_rules! ensure_phys_ty {
 pub trait DataTypeConstraint: 
     std::fmt::Debug
     + std::fmt::Display
+    + DataTypeConstraintClone
+    // + DynClone
     // + Default
     // + Copy
     // + PartialOrd
@@ -1255,6 +1261,32 @@ pub trait DataTypeConstraint:
     fn typename(&self) -> &'static str { "unknown" }
     fn as_any(&self) -> &dyn Any;
 }
+
+////////////////////////////////////////////////////////////////////////////
+/// 
+//  clone for DataTypeConstraint
+
+// implement clone for DataTypeConstraint, which is needed when we clone Box<dyn DataTypeConstraint>
+pub trait DataTypeConstraintClone {
+    fn clone_box(&self) -> Box<dyn DataTypeConstraint>;
+}
+
+impl<T> DataTypeConstraintClone for T
+where
+    T: 'static + DataTypeConstraint + Clone 
+{
+    fn clone_box(&self) -> Box<dyn DataTypeConstraint> {
+        Box::new(self.clone())
+    }
+}
+
+// We can now implement Clone manually by forwarding to clone_box.
+impl Clone for Box<dyn DataTypeConstraint> {
+    fn clone(&self) -> Box<dyn DataTypeConstraint> {
+        self.clone_box()
+    }
+}
+////////////////////////////////////////////////////////////////////////////
 
 impl DataTypeConstraint for u8 {
     fn typename(&self) -> &'static str { "u8" }
@@ -1295,6 +1327,15 @@ impl DataTypeConstraint for f32 {
 impl DataTypeConstraint for f64 {
     fn typename(&self) -> &'static str { "f64" }
     fn as_any(&self) -> &dyn Any { self }
+}
+
+pub fn convert_vec_to_vecbox_for_datatypeconstraint<T: DataTypeConstraint + 'static + Copy>(
+    from: &Vec<T>, 
+    to: &mut Vec<Box<dyn DataTypeConstraint>>) {
+    for x in from {
+        to.push(Box::new(*x));
+    }
+    // Ok(to.len())
 }
 
 #[cfg(test)]

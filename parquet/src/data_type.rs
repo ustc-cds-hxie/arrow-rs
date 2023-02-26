@@ -1286,6 +1286,7 @@ impl Clone for Box<dyn DataTypeConstraint> {
         self.clone_box()
     }
 }
+
 ////////////////////////////////////////////////////////////////////////////
 
 impl DataTypeConstraint for u8 {

@@ -292,6 +292,8 @@ pub enum Compression {
     LZ4,
     ZSTD,
     LZ4_RAW,
+    // old lz4, not used
+    LZ4_FRAME,
     // q-compression
     QCOM,
 }
@@ -838,6 +840,7 @@ impl TryFrom<parquet::CompressionCodec> for Compression {
             parquet::CompressionCodec::LZ4 => Compression::LZ4,
             parquet::CompressionCodec::ZSTD => Compression::ZSTD,
             parquet::CompressionCodec::LZ4_RAW => Compression::LZ4_RAW,
+            parquet::CompressionCodec::LZ4_FRAME => Compression::LZ4_FRAME,
             parquet::CompressionCodec::QCOM => Compression::QCOM,
             _ => {
                 return Err(general_err!(
@@ -860,6 +863,7 @@ impl From<Compression> for parquet::CompressionCodec {
             Compression::LZ4 => parquet::CompressionCodec::LZ4,
             Compression::ZSTD => parquet::CompressionCodec::ZSTD,
             Compression::LZ4_RAW => parquet::CompressionCodec::LZ4_RAW,
+            Compression::LZ4_FRAME => parquet::CompressionCodec::LZ4_FRAME,
             Compression::QCOM => parquet::CompressionCodec::QCOM,
         }
     }
@@ -1792,6 +1796,9 @@ mod tests {
         assert_eq!(Compression::BROTLI.to_string(), "BROTLI");
         assert_eq!(Compression::LZ4.to_string(), "LZ4");
         assert_eq!(Compression::ZSTD.to_string(), "ZSTD");
+        assert_eq!(Compression::LZ4_RAW.to_string(), "LZ4_RAW");
+        assert_eq!(Compression::LZ4_FRAME.to_string(), "LZ4_FRAME");
+        assert_eq!(Compression::QCOM.to_string(), "QCOM");
     }
 
     #[test]
@@ -1824,6 +1831,18 @@ mod tests {
             Compression::try_from(parquet::CompressionCodec::ZSTD).unwrap(),
             Compression::ZSTD
         );
+        assert_eq!(
+            Compression::try_from(parquet::CompressionCodec::LZ4_RAW).unwrap(),
+            Compression::LZ4_RAW
+        );
+        assert_eq!(
+            Compression::try_from(parquet::CompressionCodec::LZ4_FRAME).unwrap(),
+            Compression::LZ4_FRAME
+        );
+        assert_eq!(
+            Compression::try_from(parquet::CompressionCodec::QCOM).unwrap(),
+            Compression::QCOM
+        );
     }
 
     #[test]
@@ -1844,6 +1863,9 @@ mod tests {
         );
         assert_eq!(parquet::CompressionCodec::LZ4, Compression::LZ4.into());
         assert_eq!(parquet::CompressionCodec::ZSTD, Compression::ZSTD.into());
+        assert_eq!(parquet::CompressionCodec::LZ4_RAW, Compression::LZ4_RAW.into());
+        assert_eq!(parquet::CompressionCodec::LZ4_FRAME, Compression::LZ4_FRAME.into());
+        assert_eq!(parquet::CompressionCodec::QCOM, Compression::QCOM.into());
     }
 
     #[test]

@@ -461,7 +461,8 @@ impl CompressionCodec {
   pub const LZ4: CompressionCodec = CompressionCodec(5);
   pub const ZSTD: CompressionCodec = CompressionCodec(6);
   pub const LZ4_RAW: CompressionCodec = CompressionCodec(7);
-  pub const QCOM: CompressionCodec = CompressionCodec(8);
+  pub const LZ4_FRAME: CompressionCodec = CompressionCodec(8);
+  pub const QCOM: CompressionCodec = CompressionCodec(9);
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::UNCOMPRESSED,
     Self::SNAPPY,
@@ -471,6 +472,7 @@ impl CompressionCodec {
     Self::LZ4,
     Self::ZSTD,
     Self::LZ4_RAW,
+    Self::LZ4_FRAME,
     Self::QCOM,
   ];
 }
@@ -497,7 +499,8 @@ impl From<i32> for CompressionCodec {
       5 => CompressionCodec::LZ4,
       6 => CompressionCodec::ZSTD,
       7 => CompressionCodec::LZ4_RAW,
-      8 => CompressionCodec::QCOM,
+      8 => CompressionCodec::LZ4_FRAME,
+      9 => CompressionCodec::QCOM,
       _ => CompressionCodec(i)
     }
   }

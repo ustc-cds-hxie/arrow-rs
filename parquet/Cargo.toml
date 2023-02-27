@@ -72,7 +72,7 @@ paste = { version = "1.0" }
 # compression extension
 byteorder = { version = "1" }
 q_compress = { version = "0.11.4", default_features = false, optional = true }
-criterion = { version = "0.4" }
+criterion = { version = "0.3.3" }
 
 # allow clone dyn trait objects
 dyn-clone = { version = "1.0.0" }
@@ -82,7 +82,7 @@ env_logger = { version = "0.10.0" }
 [dev-dependencies]
 
 base64 = { version = "0.21", default-features = false, features = ["std"] }
-criterion = { version = "0.4", default-features = false }
+criterion = { version = "0.3.3" }
 tempfile = { version = "3.0", default-features = false }
 serde_json = { version = "1.0", features = ["std"], default-features = false }
 arrow = { path = "../arrow", version = "32.0.0", default-features = false, features = ["ipc", "test_utils", "prettyprint", "json"] }

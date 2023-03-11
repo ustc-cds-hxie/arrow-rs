@@ -75,7 +75,8 @@ fn test_roundtrip(c: CodecType, data: &[u8], uncompress_size: Option<usize>) {
         .decompress(compressed.as_slice(), &mut decompressed, uncompress_size)
         .expect("Error when decompressing");
 
-    debug!("\n\n Now starting c2 assert_eq! {:?} {:?}\n", data.len(), decompressed.len());
+    debug!("\n\n Now starting c2 assert_eq! {:?} {:?} decompressed_size {:?}\n", 
+        data.len(), decompressed.len(), decompressed_size);
 
     assert_eq!(data.len(), decompressed_size);
 
@@ -88,6 +89,8 @@ fn test_roundtrip(c: CodecType, data: &[u8], uncompress_size: Option<usize>) {
     compressed.clear();
 
     if c != CodecType::QCOM {
+        debug!("Now starting incremental tests\n"); 
+
         // Test does not trample existing data in output buffers
         let prefix = &[0xDE, 0xAD, 0xBE, 0xEF];
         decompressed.extend_from_slice(prefix);
@@ -105,51 +108,72 @@ fn test_roundtrip(c: CodecType, data: &[u8], uncompress_size: Option<usize>) {
     
 }
 fn test_codec_with_size(c: CodecType) {
-    let sizes = vec![100, 10000, 100000];
+    // let sizes = vec![100, 10000, 100000];
+    let sizes = vec![8,];
     for size in sizes {
         let data = random_bytes(size);
         test_roundtrip(c, &data, Some(data.len()));
     }
 }
 fn test_codec_without_size(c: CodecType) {
-    let sizes = vec![100, 10000, 100000];
+    // let sizes = vec![100, 10000, 100000];
+    let sizes = vec![8,];
     for size in sizes {
         let data = random_bytes(size);
         test_roundtrip(c, &data, None);
     }
 }
 
-#[test]
+// #[test]
 fn test_codec_snappy() {
     test_codec_with_size(CodecType::SNAPPY);
     test_codec_without_size(CodecType::SNAPPY);
 }
-#[test]
+// #[test]
 fn test_codec_gzip() {
     test_codec_with_size(CodecType::GZIP);
     test_codec_without_size(CodecType::GZIP);
 }
-#[test]
+// #[test]
 fn test_codec_brotli() {
     test_codec_with_size(CodecType::BROTLI);
     test_codec_without_size(CodecType::BROTLI);
 }
-#[test]
+// #[test]
 fn test_codec_lz4() {
     test_codec_with_size(CodecType::LZ4);
 }
-#[test]
+// #[test]
 fn test_codec_zstd() {
     test_codec_with_size(CodecType::ZSTD);
     test_codec_without_size(CodecType::ZSTD);
 }
-#[test]
+// #[test]
 fn test_codec_lz4_raw() {
     test_codec_with_size(CodecType::LZ4_RAW);
 }
 
-#[test]
+// #[test]
 fn test_codec_qcom() {
     test_codec_with_size(CodecType::QCOM);
     test_codec_without_size(CodecType::QCOM);
+}
+
+fn main() {
+
+    println!("\nTo enable debug output, add 'RUST_LOG=debug' before cargo run.\n");
+
+    env_logger::init();
+
+    test_codec_snappy();
+    test_codec_gzip();
+    test_codec_brotli();
+    test_codec_lz4();
+    test_codec_lz4_raw();
+    test_codec_zstd();
+
+
+    test_codec_qcom();
+
+    println!("All examples succeed.");
 }

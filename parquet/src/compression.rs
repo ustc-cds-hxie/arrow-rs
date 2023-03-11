@@ -73,44 +73,6 @@ pub trait Codec: Send {
         output_buf: &mut Vec<u8>,
         uncompress_size: Option<usize>,
     ) -> Result<usize>;
-
-    // generic function would be best here, but trait object does not support generic function
-    // need to figure out better way to do this
-    fn compress_u16(&mut self, _input_buf: &Vec<u16>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_u16 is not allowed".into())) }
-    fn compress_u32(&mut self, _input_buf: &Vec<u32>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_u32 is not allowed".into())) }
-    fn compress_u64(&mut self, _input_buf: &Vec<u64>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_u64 is not allowed".into())) }
-    fn compress_i16(&mut self, _input_buf: &Vec<i16>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_i16 is not allowed".into())) }
-    fn compress_i32(&mut self, _input_buf: &Vec<i32>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_i32 is not allowed".into())) }
-    fn compress_i64(&mut self, _input_buf: &Vec<i64>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_i64 is not allowed".into())) }
-    fn compress_f32(&mut self, _input_buf: &Vec<f32>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_f32 is not allowed".into())) }
-    fn compress_f64(&mut self, _input_buf: &Vec<f64>, _output_buf: &mut Vec<u8>) -> Result<()> { Err(ParquetError::General("decompress_f64 is not allowed".into())) }
-
-    // generic function would be best here, but trait object does not support generic function
-    // need to figure out better way to do this
-    fn decompress_u16(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<u16>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_u16 is not allowed".into())) }
-    fn decompress_u32(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<u32>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_u32 is not allowed".into())) }
-    fn decompress_u64(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<u64>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_u64 is not allowed".into()))}
-    fn decompress_i16(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<i16>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_i16 is not allowed".into())) }
-    fn decompress_i32(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<i32>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_i32 is not allowed".into())) }
-    fn decompress_i64(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<i64>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_i64 is not allowed".into())) }
-    fn decompress_f32(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<f32>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_f32 is not allowed".into())) }
-    fn decompress_f64(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<f64>, _uncompress_size: Option<usize>,) -> Result<usize> { Err(ParquetError::General("decompress_f64 is not allowed".into())) }
-
-    // determine if 
-    // (1) the input is allowed for compress, or 
-    // (2) the output is allowed for decompress
-    fn allow_input_to_compress(&mut self, sample: Field) -> bool {
-        match sample {
-            Field::UByte(_) => true,
-            _ => false,
-        }
-    }
-    fn allow_output_to_decompress(&mut self, sample: Field) -> bool {
-        match sample {
-            Field::UByte(_) => true,
-            _ => false,
-        }
-    }
 }
 
 /// Struct to hold `Codec` creation options.
@@ -704,125 +666,176 @@ mod qcom_codec {
     use crate::errors::{ParquetError, Result};
     use crate::record::Field;
 
+    use byteorder::{ByteOrder, BigEndian};
     use q_compress::{auto_compress, auto_decompress, DEFAULT_COMPRESSION_LEVEL};
 
     /// Codec for LZ4 Raw compression algorithm.
-    pub struct QcomCodec {}
+    pub struct QcomCodec {
+        // compression level
+        level: usize,
+        // real data type (input: u8, real input: datatype)
+        datatype: Field,
+    }
 
     impl QcomCodec {
         /// Creates new LZ4 Raw compression codec.
         pub(crate) fn new() -> Self {
-            Self {}
+            Self { 
+                level: DEFAULT_COMPRESSION_LEVEL, 
+                datatype: Field::UInt(0u32) 
+            }
         }
     }
 
     impl Codec for QcomCodec {
         fn decompress(
             &mut self,
-            _input_buf: &[u8],
-            _output_buf: &mut Vec<u8>,
+            input_buf: &[u8],
+            output_buf: &mut Vec<u8>,
             _uncompress_size: Option<usize>,
         ) -> Result<usize> { 
-            Err(ParquetError::General(
-                "QcomCodec decompress does not generate Vec<u8> output".into(),
-            ))
-        }
 
-        fn decompress_u16(&mut self, input_buf: &[u8], output_buf: &mut Vec<u16>, _uncompress_size: Option<usize>,) -> Result<usize> {
-            output_buf.append( &mut auto_decompress::<u16>(input_buf).expect("failed to decompress") );
-            Ok(output_buf.len())
-        }
-        fn decompress_u32(&mut self, input_buf: &[u8], output_buf: &mut Vec<u32>, _uncompress_size: Option<usize>,) -> Result<usize> {
-            output_buf.append( &mut auto_decompress::<u32>(input_buf).expect("failed to decompress") );
-            Ok(output_buf.len())
-        }
-        fn decompress_u64(&mut self, input_buf: &[u8], output_buf: &mut Vec<u64>, _uncompress_size: Option<usize>,) -> Result<usize> {
-            output_buf.append( &mut auto_decompress::<u64>(input_buf).expect("failed to decompress") );
-            Ok(output_buf.len())
-        }
-        fn decompress_i16(&mut self, input_buf: &[u8], output_buf: &mut Vec<i16>, _uncompress_size: Option<usize>,) -> Result<usize> {
-            output_buf.append( &mut auto_decompress::<i16>(input_buf).expect("failed to decompress") );
-            Ok(output_buf.len())
-        }
-        fn decompress_i32(&mut self, input_buf: &[u8], output_buf: &mut Vec<i32>, _uncompress_size: Option<usize>,) -> Result<usize> {
-            output_buf.append( &mut auto_decompress::<i32>(input_buf).expect("failed to decompress") );
-            Ok(output_buf.len())
-        }
-        fn decompress_i64(&mut self, input_buf: &[u8], output_buf: &mut Vec<i64>, _uncompress_size: Option<usize>,) -> Result<usize> {
-            output_buf.append( &mut auto_decompress::<i64>(input_buf).expect("failed to decompress") );
-            Ok(output_buf.len())
-        }
-        fn decompress_f32(&mut self, input_buf: &[u8], output_buf: &mut Vec<f32>, _uncompress_size: Option<usize>,) -> Result<usize> {
-            output_buf.append( &mut auto_decompress::<f32>(input_buf).expect("failed to decompress") );
-            Ok(output_buf.len())
-        }
-        fn decompress_f64(&mut self, input_buf: &[u8], output_buf: &mut Vec<f64>, _uncompress_size: Option<usize>,) -> Result<usize> {
-            output_buf.append( &mut auto_decompress::<f64>(input_buf).expect("failed to decompress") );
-            Ok(output_buf.len())
-        }
-
-        fn compress(&mut self, _input_buf: &[u8], _output_buf: &mut Vec<u8>) -> Result<()> {
-            Err(ParquetError::General(
-                "QcomCodec compress does not use Vec<u8> as input".into(),
-            ))
-        }
-
-        fn compress_u16(&mut self, input_buf: &Vec<u16>, output_buf: &mut Vec<u8> ) -> Result<()> { 
-            output_buf.append(&mut auto_compress::<u16>(input_buf, DEFAULT_COMPRESSION_LEVEL));
-            Ok(())
-        }
-        fn compress_u32(&mut self, input_buf: &Vec<u32>, output_buf: &mut Vec<u8> ) -> Result<()> { 
-            output_buf.append(&mut auto_compress::<u32>(input_buf, DEFAULT_COMPRESSION_LEVEL));
-            Ok(())
-        }
-        fn compress_u64(&mut self, input_buf: &Vec<u64>, output_buf: &mut Vec<u8> ) -> Result<()> { 
-            output_buf.append(&mut auto_compress::<u64>(input_buf, DEFAULT_COMPRESSION_LEVEL));
-            Ok(())
-        }
-        fn compress_i16(&mut self, input_buf: &Vec<i16>, output_buf: &mut Vec<u8> ) -> Result<()> { 
-            output_buf.append(&mut auto_compress::<i16>(input_buf, DEFAULT_COMPRESSION_LEVEL));
-            Ok(())
-        }
-        fn compress_i32(&mut self, input_buf: &Vec<i32>, output_buf: &mut Vec<u8> ) -> Result<()> { 
-            output_buf.append(&mut auto_compress::<i32>(input_buf, DEFAULT_COMPRESSION_LEVEL));
-            Ok(())
-        }
-        fn compress_i64(&mut self, input_buf: &Vec<i64>, output_buf: &mut Vec<u8> ) -> Result<()> { 
-            output_buf.append(&mut auto_compress::<i64>(input_buf, DEFAULT_COMPRESSION_LEVEL));
-            Ok(())
-        }
-        fn compress_f32(&mut self, input_buf: &Vec<f32>, output_buf: &mut Vec<u8> ) -> Result<()> { 
-            output_buf.append(&mut auto_compress::<f32>(input_buf, DEFAULT_COMPRESSION_LEVEL));
-            Ok(())
-        }
-        fn compress_f64(&mut self, input_buf: &Vec<f64>, output_buf: &mut Vec<u8>) -> Result<()> { 
-            output_buf.append(&mut auto_compress::<f64>(input_buf, DEFAULT_COMPRESSION_LEVEL));
-            Ok(())
-        }
-
-        // determine if 
-        // (1) the input is allowed for compress, or 
-        // (2) the output is allowed for decompress
-        fn allow_input_to_compress(&mut self, sample: Field) -> bool {
-            match sample {
-                Field::Short(_) | Field::UShort(_) => true,
-                Field::Int(_) | Field::UInt(_) => true,
-                Field::Long(_) | Field::ULong(_) => true,
-                Field::Float(_) | Field::Double(_) => true,
-                Field::TimestampMillis(_) | Field::TimestampMicros(_) => true,
-                Field::Date(_) => true,
-                _ => false,
+            match self.datatype {
+                Field::Short(_) => {
+                    let mut internal_output_buf = Vec::new();
+                    internal_output_buf.append( &mut auto_decompress::<i16>(input_buf).expect("failed to decompress") );
+                    let extra_len = internal_output_buf.len() * std::mem::size_of::<i16>();
+                    let current_len = output_buf.len();
+                    output_buf.resize(current_len + extra_len, 0);
+                    BigEndian::write_i16_into(&internal_output_buf, &mut output_buf[current_len..]);
+                    Ok(output_buf.len())
+                },
+                Field::UShort(_) => {
+                    let mut internal_output_buf = Vec::new();
+                    internal_output_buf.append( &mut auto_decompress::<u16>(input_buf).expect("failed to decompress") );
+                    let extra_len = internal_output_buf.len() * std::mem::size_of::<u16>();
+                    let current_len = output_buf.len();
+                    output_buf.resize(current_len + extra_len, 0);
+                    BigEndian::write_u16_into(&internal_output_buf, &mut output_buf[current_len..]);
+                    Ok(output_buf.len())
+                },
+                Field::Int(_) | Field::Date(_) => {
+                    let mut internal_output_buf = Vec::new();
+                    internal_output_buf.append( &mut auto_decompress::<i32>(input_buf).expect("failed to decompress") );
+                    let extra_len = internal_output_buf.len() * std::mem::size_of::<i32>();
+                    let current_len = output_buf.len();
+                    output_buf.resize(current_len + extra_len, 0);
+                    BigEndian::write_i32_into(&internal_output_buf, &mut output_buf[current_len..]);
+                    Ok(output_buf.len())
+                },
+                Field::UInt(_) => {
+                    let mut internal_output_buf = Vec::new();
+                    internal_output_buf.append( &mut auto_decompress::<u32>(input_buf).expect("failed to decompress") );
+                    let extra_len = internal_output_buf.len() * std::mem::size_of::<u32>();
+                    let current_len = output_buf.len();
+                    output_buf.resize(current_len + extra_len, 0);
+                    BigEndian::write_u32_into(&internal_output_buf, &mut output_buf[current_len..]);
+                    Ok(output_buf.len())
+                },
+                Field::Long(_) | Field::TimestampMillis(_) | Field::TimestampMicros(_) => {
+                    let mut internal_output_buf = Vec::new();
+                    internal_output_buf.append( &mut auto_decompress::<i64>(input_buf).expect("failed to decompress") );
+                    let extra_len = internal_output_buf.len() * std::mem::size_of::<i64>();
+                    let current_len = output_buf.len();
+                    output_buf.resize(current_len + extra_len, 0);
+                    BigEndian::write_i64_into(&internal_output_buf, &mut output_buf[current_len..]);
+                    Ok(output_buf.len())
+                }, 
+                Field::ULong(_) => {
+                    let mut internal_output_buf = Vec::new();
+                    internal_output_buf.append( &mut auto_decompress::<u64>(input_buf).expect("failed to decompress") );
+                    let extra_len = internal_output_buf.len() * std::mem::size_of::<u64>();
+                    let current_len = output_buf.len();
+                    output_buf.resize(current_len + extra_len, 0);
+                    BigEndian::write_u64_into(&internal_output_buf, &mut output_buf[current_len..]);
+                    Ok(output_buf.len())
+                },
+                Field::Float(_) => {
+                    let mut internal_output_buf = Vec::new();
+                    internal_output_buf.append( &mut auto_decompress::<f32>(input_buf).expect("failed to decompress") );
+                    let extra_len = internal_output_buf.len() * std::mem::size_of::<f32>();
+                    let current_len = output_buf.len();
+                    output_buf.resize(current_len + extra_len, 0);
+                    BigEndian::write_f32_into(&internal_output_buf, &mut output_buf[current_len..]);
+                    Ok(output_buf.len())
+                },
+                Field::Double(_) => {
+                    let mut internal_output_buf = Vec::new();
+                    internal_output_buf.append( &mut auto_decompress::<f64>(input_buf).expect("failed to decompress") );
+                    let extra_len = internal_output_buf.len() * std::mem::size_of::<f64>();
+                    let current_len = output_buf.len();
+                    output_buf.resize(current_len + extra_len, 0);
+                    BigEndian::write_f64_into(&internal_output_buf, &mut output_buf[current_len..]);
+                    Ok(output_buf.len())
+                },
+                _ => Err(ParquetError::General(
+                    format!("QcomCodec decompress does not deal with this data type: {:?}", self.datatype).into(),
+                )),
             }
+            
         }
-        fn allow_output_to_decompress(&mut self, sample: Field) -> bool {
-            match sample {
-                Field::Short(_) | Field::UShort(_) => true,
-                Field::Int(_) | Field::UInt(_) => true,
-                Field::Long(_) | Field::ULong(_) => true,
-                Field::Float(_) | Field::Double(_) => true,
-                Field::TimestampMillis(_) | Field::TimestampMicros(_) => true,
-                Field::Date(_) => true,
-                _ => false,
+
+        fn compress(&mut self, input_buf: &[u8], output_buf: &mut Vec<u8>) -> Result<()> {
+            match self.datatype {
+                Field::Short(_) => {
+                    let len = input_buf.len() / std::mem::size_of::<i16>();
+                    let mut internal_buf = vec![0; len];
+                    BigEndian::read_i16_into(&input_buf, &mut internal_buf);
+                    output_buf.append( &mut auto_compress::<i16>(& internal_buf, DEFAULT_COMPRESSION_LEVEL) );
+                    Ok(())
+                },
+                Field::UShort(_) => {
+                    let len = input_buf.len() / std::mem::size_of::<u16>();
+                    let mut internal_buf = vec![0; len];
+                    BigEndian::read_u16_into(&input_buf, &mut internal_buf);
+                    output_buf.append( &mut auto_compress::<u16>(& internal_buf, DEFAULT_COMPRESSION_LEVEL) );
+                    Ok(())
+                },
+                Field::Int(_) | Field::Date(_) => {
+                    let len = input_buf.len() / std::mem::size_of::<i32>();
+                    let mut internal_buf = vec![0; len];
+                    BigEndian::read_i32_into(&input_buf, &mut internal_buf);
+                    output_buf.append( &mut auto_compress::<i32>(& internal_buf, DEFAULT_COMPRESSION_LEVEL) );
+                    Ok(())
+                },
+                Field::UInt(_) => {
+                    let len = input_buf.len() / std::mem::size_of::<u32>();
+                    let mut internal_buf = vec![0; len];
+                    BigEndian::read_u32_into(&input_buf, &mut internal_buf);
+                    output_buf.append( &mut auto_compress::<u32>(& internal_buf, DEFAULT_COMPRESSION_LEVEL) );
+                    Ok(())
+                },
+                Field::Long(_) | Field::TimestampMillis(_) | Field::TimestampMicros(_) => {
+                    let len = input_buf.len() / std::mem::size_of::<i64>();
+                    let mut internal_buf = vec![0; len];
+                    BigEndian::read_i64_into(&input_buf, &mut internal_buf);
+                    output_buf.append( &mut auto_compress::<i64>(& internal_buf, DEFAULT_COMPRESSION_LEVEL) );
+                    Ok(())
+                }, 
+                Field::ULong(_) => {
+                    let len = input_buf.len() / std::mem::size_of::<u64>();
+                    let mut internal_buf = vec![0; len];
+                    BigEndian::read_u64_into(&input_buf, &mut internal_buf);
+                    output_buf.append( &mut auto_compress::<u64>(& internal_buf, DEFAULT_COMPRESSION_LEVEL) );
+                    Ok(())
+                },
+                Field::Float(_) => {
+                    let len = input_buf.len() / std::mem::size_of::<f32>();
+                    let mut internal_buf = vec![0f32; len];
+                    BigEndian::read_f32_into(&input_buf, &mut internal_buf);
+                    output_buf.append( &mut auto_compress::<f32>(& internal_buf, DEFAULT_COMPRESSION_LEVEL) );
+                    Ok(())
+                },
+                Field::Double(_) => {
+                    let len = input_buf.len() / std::mem::size_of::<f64>();
+                    let mut internal_buf = vec![0f64; len];
+                    BigEndian::read_f64_into(&input_buf, &mut internal_buf);
+                    output_buf.append( &mut auto_compress::<f64>(& internal_buf, DEFAULT_COMPRESSION_LEVEL) );
+                    Ok(())
+                },
+                _ => Err(ParquetError::General(
+                    format!("QcomCodec compress does not deal with this data type: {:?}", self.datatype).into(),
+                )),
             }
         }
     }
@@ -873,23 +886,26 @@ mod tests {
         decompressed.clear();
         compressed.clear();
 
-        // Test does not trample existing data in output buffers
-        let prefix = &[0xDE, 0xAD, 0xBE, 0xEF];
-        decompressed.extend_from_slice(prefix);
-        compressed.extend_from_slice(prefix);
+        if c != CodecType::QCOM {
 
-        c2.compress(data, &mut compressed)
-            .expect("Error when compressing");
+            // Test does not trample existing data in output buffers
+            let prefix = &[0xDE, 0xAD, 0xBE, 0xEF];
+            decompressed.extend_from_slice(prefix);
+            compressed.extend_from_slice(prefix);
 
-        assert_eq!(&compressed[..4], prefix);
+            c2.compress(data, &mut compressed)
+                .expect("Error when compressing");
 
-        let decompressed_size = c2
-            .decompress(&compressed[4..], &mut decompressed, uncompress_size)
-            .expect("Error when decompressing");
+            assert_eq!(&compressed[..4], prefix);
 
-        assert_eq!(data.len(), decompressed_size);
-        assert_eq!(data, &decompressed[4..]);
-        assert_eq!(&decompressed[..4], prefix);
+            let decompressed_size = c2
+                .decompress(&compressed[4..], &mut decompressed, uncompress_size)
+                .expect("Error when decompressing");
+
+            assert_eq!(data.len(), decompressed_size);
+            assert_eq!(data, &decompressed[4..]);
+            assert_eq!(&decompressed[..4], prefix);
+        }
     }
 
     fn test_codec_with_size(c: CodecType) {
@@ -940,5 +956,11 @@ mod tests {
     #[test]
     fn test_codec_lz4_raw() {
         test_codec_with_size(CodecType::LZ4_RAW);
+    }
+
+    #[test]
+    fn test_codec_qcom() {
+        test_codec_with_size(CodecType::QCOM);
+        test_codec_without_size(CodecType::QCOM);
     }
 }

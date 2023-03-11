@@ -68,6 +68,9 @@ hashbrown = { version = "0.13", default-features = false }
 twox-hash = { version = "1.6", default-features = false }
 paste = { version = "1.0" }
 
+log = { version = "0.4.17" }
+env_logger = { version = "0.10.0" }
+
 # compression extension
 byteorder = { version = "1" }
 q_compress = { version = "0.11.4", default_features = false, optional = true }
@@ -81,6 +84,9 @@ serde_json = { version = "1.0", features = ["std"], default-features = false }
 arrow = { path = "../arrow", version = "32.0.0", default-features = false, features = ["ipc", "test_utils", "prettyprint", "json"] }
 tokio = { version = "1.0", default-features = false, features = ["macros", "rt", "io-util", "fs"] }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+
+log = { version = "0.4.17" }
+env_logger = { version = "0.10.0" }
 
 # compress packages: parquet needs the following packages
 brotli = { version = "3.3", default-features = false, features = ["std"] }
